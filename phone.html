@@ -1,0 +1,787 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>PRISM — Espace Agent</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&display=swap');
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  @font-face {
+    font-family: 'PlusJakartaSans';
+    src: url('fonts/PlusJakartaSans-Regular.otf') format('opentype');
+    font-weight: 400;
+    font-style: normal;
+  }
+
+  @font-face {
+    font-family: 'SourceCodePro';
+    src: url('fonts/SourceCodePro-Bold.ttf') format('truetype');
+    font-weight: 700;
+    font-style: normal;
+  }
+  @font-face {
+    font-family: 'SourceCodePro';
+    src: url('fonts/SourceCodePro-Regular.ttf') format('truetype');
+    font-weight: 400;
+    font-style: normal;
+  }
+
+  :root {
+    --bg: #050508;
+    --accent: #00ffaa;
+    --accent2: #ff3cac;
+    --text: #e8e8f0;
+    --muted: #555570;
+    --border: #1e1e2e;
+    --white: #ffffff;
+  }
+
+  html, body {
+    width: 100%; height: 100%;
+    overflow: hidden;
+    background: #000;
+    font-family: 'PlusJakartaSans', monospace;
+    color: var(--text);
+    user-select: none;
+    -webkit-user-select: none;
+  }
+
+  .screen {
+    position: fixed;
+    inset: 0;
+    z-index: 10;
+    display: none;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    transition: opacity 0.4s ease;
+  }
+  .screen.active { display: flex; }
+  .screen.fade-out { opacity: 0; pointer-events: none; }
+
+  #bgVideo {
+    position: fixed;
+    inset: 0;
+    width: 100vw; height: 100vh;
+    object-fit: cover;
+    z-index: 0;
+    pointer-events: none;
+  }
+
+  /* ═══ ÉCRAN 1 — Choix du rôle ═══ */
+  #screenRole { z-index: 10; background: transparent; }
+
+  .role-greeting {
+    position: absolute; top: 2.5rem; left: 0; right: 0;
+    text-align: center; font-size: 0.7rem; letter-spacing: 0.18em;
+    text-transform: uppercase; color: rgba(255,255,255,0.9);
+    text-shadow: 0 1px 10px rgba(0,0,0,0.9);
+  }
+  .role-intro {
+    font-size: 1rem; font-weight: 700; letter-spacing: 0.05em;
+    color: #fff; text-shadow: 0 2px 12px rgba(0,0,0,0.9);
+    margin-bottom: 1.8rem; text-align: center;
+  }
+  .role-buttons {
+    display: flex; flex-direction: column; gap: 0.9rem;
+    width: 80%; max-width: 300px;
+  }
+  .role-btn {
+    padding: 0.9rem 1.5rem;
+    background: rgba(255,255,255,0.12); color: #fff;
+    border: 1.5px solid rgba(255,255,255,0); border-radius: 10px;
+    font-family: 'PlusJakartaSans', monospace; font-size: 0.78rem;
+    font-weight: 700; letter-spacing: 0.08em; cursor: pointer;
+    text-align: center; transition: all 0.15s; backdrop-filter: blur(6px);
+    -webkit-tap-highlight-color: transparent;
+  }
+  .role-btn:active { background: rgba(255,255,255,0.3); transform: scale(0.97); }
+  .role-btn.selected { background: #fff; color: #000; border-color: #fff; }
+
+  /* ═══ ÉCRAN 2 — Connexion ═══ */
+  #screenConnect { z-index: 10; background: transparent; }
+
+  .connect-top {
+    position: absolute; top: 2.5rem; left: 0; right: 0;
+    text-align: center; font-size: 0.7rem; letter-spacing: 0.18em;
+    text-transform: uppercase; color: rgba(255,255,255,0.9);
+    text-shadow: 0 1px 10px rgba(0,0,0,0.9);
+  }
+  .connect-role-display {
+    font-size: 0.65rem; letter-spacing: 0.15em; text-transform: uppercase;
+    color: rgba(255,255,255,0.6); margin-bottom: 0.6rem; text-align: center;
+    text-shadow: 0 1px 8px rgba(0,0,0,0.8);
+  }
+  .connect-role-name {
+    font-size: 1.1rem; font-weight: 700; color: #fff;
+    text-shadow: 0 2px 12px rgba(0,0,0,0.9); margin-bottom: 2rem; text-align: center;
+  }
+  #accessBtn {
+    padding: 1rem 2.5rem; background: #fff; color: #000; border: none;
+    border-radius: 100px; font-family: 'PlusJakartaSans', monospace;
+    font-size: 0.85rem; font-weight: 700; letter-spacing: 0.08em; cursor: pointer;
+    transition: transform 0.15s, filter 0.15s; -webkit-tap-highlight-color: transparent;
+    box-shadow: 0 2px 20px rgba(0,0,0,0.5); margin-top: 1.4rem;
+  }
+  #accessBtn:active { transform: scale(0.95); filter: brightness(0.85); }
+
+  /* ═══ ÉCRAN 3 — Idle ═══ */
+  #screenIdle { z-index: 10; background: #000; }
+  #idleBg { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; z-index: 0; }
+  #idlePhoneId {
+    position: absolute; top: 1.2rem; left: 1.2rem; z-index: 2;
+    font-size: 0.55rem; letter-spacing: 0.12em; color: rgba(255,255,255,0.6);
+  }
+
+  /* ═══ NOTIFICATION ═══ */
+  #notifOverlay {
+    position: fixed; inset: 0; z-index: 490;
+    background: rgba(0,0,0,0.6); display: none;
+    align-items: center; justify-content: center;
+    backdrop-filter: blur(4px); -webkit-backdrop-filter: blur(4px);
+  }
+  #notifOverlay.show { display: flex; }
+
+  #notifBanner {
+    position: relative; z-index: 500; width: 78%; max-width: 300px;
+    background: rgba(28,28,36,0.98); border: 1px solid rgba(255,255,255,0.12);
+    border-radius: 14px; padding: 1.6rem 1.4rem 1.2rem;
+    display: flex; flex-direction: column; align-items: center; gap: 0.8rem;
+    backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
+    cursor: pointer; -webkit-tap-highlight-color: transparent;
+    box-shadow: 0 32px 80px rgba(0,0,0,0.7), 0 0 0 1px rgba(255,255,255,0.04);
+    transform: scale(0.88); opacity: 0;
+    transition: transform 0.3s cubic-bezier(0.34,1.56,0.64,1), opacity 0.2s ease;
+  }
+  #notifOverlay.show #notifBanner { transform: scale(1); opacity: 1; }
+
+  .notif-icon { font-size: 1.5rem; flex-shrink: 0; }
+  .notif-text { flex: 1; }
+  .notif-app { font-size: 0.52rem; letter-spacing: 0.15em; text-transform: uppercase; color: var(--muted); margin-bottom: 0.2rem; }
+  .notif-title { font-size: 0.72rem; font-weight: 700; color: #fff; }
+  .notif-sub { font-size: 0.6rem; color: rgba(255,255,255,0.5); margin-top: 0.1rem; }
+  .notif-arrow { font-size: 0.8rem; color: var(--muted); flex-shrink: 0; }
+
+  /* ═══ ÉCRAN 4 — Tâche ═══ */
+  #screenTask { z-index: 20; background: #000; padding: 2rem 1.5rem; gap: 0; }
+
+  #taskBlurBg {
+    position: absolute; inset: 0; z-index: 0;
+    background: rgba(0,0,0,0.45); backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px); display: none;
+    background-size: cover; background-position: center;
+  }
+  #taskBg {
+    position: absolute; inset: 0; width: 100%; height: 100%;
+    object-fit: cover; z-index: 0; opacity: 0.3; transition: opacity 0.2s;
+  }
+  .task-inner {
+    position: relative; z-index: 1; width: 100%;
+    display: flex; flex-direction: column; align-items: center; gap: 1.5rem;
+    padding: 1.5rem; background: rgba(5,5,15,0.82);
+    border: 1px solid rgba(255,255,255,0.1); border-radius: 18px;
+    backdrop-filter: blur(8px); max-width: 380px; max-height: 85vh; overflow-y: auto;
+  }
+  .task-header { font-size: 0.55rem; letter-spacing: 0.22em; text-transform: uppercase; color: var(--muted); text-align: center; }
+  .task-message { font-size: 0.82rem; line-height: 1.8; color: #fff; text-align: center; letter-spacing: 0.03em; }
+  #taskPatternImg { width: 100%; max-width: 280px; border-radius: 10px; border: 1px solid rgba(255,255,255,0.15); display: none; }
+  .task-done-btn {
+    padding: 0.85rem 2rem; background: #fff; color: #000; border: none;
+    border-radius: 100px; font-family: 'PlusJakartaSans', monospace;
+    font-size: 0.75rem; font-weight: 700; letter-spacing: 0.08em; cursor: pointer;
+    transition: transform 0.15s, filter 0.15s; -webkit-tap-highlight-color: transparent; margin-top: 0.5rem;
+  }
+  .task-done-btn:active { transform: scale(0.95); filter: brightness(0.85); }
+
+  /* ═══ OVERLAY MÉDIA ═══ */
+  #mediaOverlay { position: fixed; inset: 0; z-index: 300; background: #000; display: none; }
+  #mediaOverlay.show { display: block; }
+  #mediaOverlay::after { content: ''; position: absolute; inset: 0; z-index: 10; }
+
+  #videoFull, #imageFull {
+    position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
+    object-fit: cover; display: none; max-height: none !important; max-width: none !important;
+  }
+
+  /* ═══ AUDIO OVERLAY — paysage, plein écran, blanc ═══ */
+  #audioOverlay {
+    position: absolute; inset: 0; z-index: 5;
+    display: none;
+    align-items: center; justify-content: center;
+    background: rgba(5,5,15,0.97);
+  }
+  #audioOverlay.show { display: flex; }
+
+  /* Conteneur pivoté 90° — mode paysage */
+  .waveform-landscape {
+    position: absolute;
+    width: 100vh;
+    height: 100vw;
+    top: 50%; left: 50%;
+    transform: translate(-50%, -50%) rotate(90deg);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0 6vw;
+  }
+
+  /* Les barres du spectre */
+  .waveform {
+    display: flex;
+    gap: clamp(3px, 1vw, 6px);
+    align-items: center;
+    width: 100%;
+    height: 60vw;
+    justify-content: center;
+  }
+  .waveform span {
+    display: block;
+    flex: 1;
+    max-width: 14px;
+    border-radius: 4px;
+    background: #ffffff;
+    height: 8%;
+  }
+  .waveform.playing span { animation: wave 0.8s ease-in-out infinite; }
+  .waveform:not(.playing) span { height: 8%; opacity: 0.25; }
+  .waveform span:nth-child(1) {animation-delay:0s}
+  .waveform span:nth-child(2) {animation-delay:0.07s}
+  .waveform span:nth-child(3) {animation-delay:0.14s}
+  .waveform span:nth-child(4) {animation-delay:0.21s}
+  .waveform span:nth-child(5) {animation-delay:0.28s}
+  .waveform span:nth-child(6) {animation-delay:0.35s}
+  .waveform span:nth-child(7) {animation-delay:0.21s}
+  .waveform span:nth-child(8) {animation-delay:0.14s}
+  .waveform span:nth-child(9) {animation-delay:0.07s}
+  .waveform span:nth-child(10){animation-delay:0s}
+  .waveform span:nth-child(11){animation-delay:0.1s}
+  .waveform span:nth-child(12){animation-delay:0.2s}
+  .waveform span:nth-child(13){animation-delay:0.3s}
+  .waveform span:nth-child(14){animation-delay:0.15s}
+  .waveform span:nth-child(15){animation-delay:0.05s}
+  .waveform span:nth-child(16){animation-delay:0.25s}
+  @keyframes wave { 0%,100%{height:8%} 50%{height:90%} }
+
+  /* Titre audio masqué en mode paysage */
+  .audio-title { display: none; }
+
+  #audioEl { display: none; }
+
+  /* ═══ ÉCRAN TEXTE — paysage ═══ */
+  #screenText { z-index: 25; background: #000; }
+
+  .text-landscape {
+    position: absolute;
+    width: 100vh; height: 100vw;
+    top: 50%; left: 50%;
+    transform: translate(-50%, -50%) rotate(-90deg);
+    display: flex; align-items: center; justify-content: center;
+    padding: 8vw 10vw;
+    background: #000;
+  }
+  .text-display {
+    font-family: 'SourceCodePro', monospace;
+    font-size: 11vw; font-weight: 700; color: #fff;
+    text-align: center; line-height: 1.25; word-break: break-word;
+    white-space: pre-wrap; letter-spacing: 0.04em;
+    text-shadow: 0 0 30px rgba(255,255,255,0.15);
+    max-width: 55vh;
+  }
+  .text-close-btn {
+    position: absolute; bottom: 3vw; right: 3vw;
+    padding: 0.6rem 1.2rem; background: rgba(255,255,255,0.12);
+    border: 1px solid rgba(255,255,255,0.3); border-radius: 8px;
+    color: #fff; font-family: 'PlusJakartaSans', monospace; font-size: 0.65rem; cursor: pointer;
+  }
+
+  /* ═══ FLASH COMMANDE ═══ */
+  #cmdFlash {
+    position: fixed; top: 0; left: 0; right: 0;
+    padding: 0.8rem; text-align: center;
+    font-size: 0.65rem; letter-spacing: 0.12em; text-transform: uppercase;
+    transform: translateY(-100%); transition: transform 0.3s ease;
+    z-index: 600; pointer-events: none;
+  }
+  #cmdFlash.show { transform: translateY(0); }
+  #cmdFlash.play { background: rgba(0,255,170,0.15); color: var(--accent); border-bottom: 1px solid rgba(0,255,170,0.2); }
+  #cmdFlash.stop { background: rgba(255,60,172,0.1); color: var(--accent2); border-bottom: 1px solid rgba(255,60,172,0.2); }
+</style>
+</head>
+<body>
+
+<div id="cmdFlash"></div>
+<video id="bgVideo" src="media/loading_screen_ROSE.mp4" autoplay loop muted playsinline webkit-playsinline></video>
+
+<!-- ÉCRAN 1 — Choix du rôle -->
+<div class="screen active" id="screenRole">
+  <div class="role-greeting">Bienvenue chez PRISM corporation !</div>
+  <div class="role-intro">Je suis…</div>
+  <div class="role-buttons">
+    <button class="role-btn" onclick="selectRole('Technicien de tri')">Technicien de tri</button>
+    <button class="role-btn" onclick="selectRole('Référent produit')">Référent produit</button>
+    <button class="role-btn" onclick="selectRole('Responsable commande')">Responsable commande</button>
+  </div>
+</div>
+
+<!-- ÉCRAN 2 — Connexion -->
+<div class="screen" id="screenConnect">
+  <div class="connect-top">Bienvenue chez PRISM corporation !</div>
+  <div class="connect-role-display">Vous êtes</div>
+  <div class="connect-role-name" id="connectRoleName">—</div>
+  <div id="connectInstructions" style="
+    width:80%; max-width:300px; margin-top:1.2rem; padding:1rem 1.2rem;
+    background:rgba(100,6,53,0.464); border:1px solid rgba(255,255,255,0);
+    border-radius:12px; backdrop-filter:blur(6px);
+    font-family:'PlusJakartaSans',monospace; font-size:0.88rem; line-height:2.1;
+    color:rgba(255,255,255,0.85); text-shadow:0 1px 6px rgba(0,0,0,0.6); text-align:left;
+  "></div>
+  <button id="accessBtn" onclick="onConnect()">Accéder à mon espace</button>
+</div>
+
+<!-- ÉCRAN 3 — Idle -->
+<div class="screen" id="screenIdle">
+  <img id="idleBg" src="media/BG_pcorp_tel.png" alt="" />
+  <div id="idlePhoneId"></div>
+</div>
+
+<!-- NOTIFICATION -->
+<div id="notifOverlay" onclick="openTask()">
+  <div id="notifBanner">
+    <div style="width:32px;height:2px;background:rgba(255,255,255,0.25);border-radius:2px;margin-bottom:0.2rem;"></div>
+    <div style="display:flex;flex-direction:column;align-items:center;gap:0.35rem;width:100%;">
+      <div style="font-family:'PlusJakartaSans',monospace;font-size:0.52rem;letter-spacing:0.22em;text-transform:uppercase;color:rgba(255,255,255,0.4);">PRISM Corporation</div>
+      <div style="font-family:'PlusJakartaSans',monospace;font-size:1.05rem;font-weight:700;color:#fff;letter-spacing:0.02em;text-align:center;">Nouveau message</div>
+      <div style="font-family:'PlusJakartaSans',monospace;font-size:0.6rem;letter-spacing:0.1em;color:rgba(255,255,255,0.35);text-transform:uppercase;">Appuyez pour ouvrir</div>
+    </div>
+    <div style="width:100%;height:1px;background:rgba(255,255,255,0.1);margin:0.3rem 0;"></div>
+    <div style="width:100%;padding:0.75rem 0;background:#fff;color:#000;border-radius:10px;font-family:'PlusJakartaSans',monospace;font-size:0.8rem;font-weight:700;letter-spacing:0.08em;text-align:center;text-transform:uppercase;">Ouvrir</div>
+  </div>
+</div>
+
+<!-- ÉCRAN TEXTE — paysage -->
+<div class="screen" id="screenText">
+  <div class="text-landscape">
+    <div class="text-display" id="textDisplay"></div>
+  </div>
+</div>
+
+<!-- ÉCRAN 4 — Tâche -->
+<div class="screen" id="screenTask">
+  <div id="taskBlurBg"></div>
+  <img id="taskBg" src="media/prism_fond_bleu.png" alt="" />
+  <div class="task-inner">
+    <div class="task-message" id="taskMessage"></div>
+    <img id="taskPatternImg" src="" alt="Pattern" />
+    <img id="taskMissionImg" src="" alt="Mission" style="display:none;border-radius:8px;" />
+    <img id="taskCommandeImg" src="" alt="Commande" style="display:none;border-radius:12px;" />
+    <button class="task-done-btn" id="taskDoneBtn" onclick="taskDone()">Terminé</button>
+  </div>
+</div>
+
+<!-- OVERLAY MÉDIA -->
+<div id="mediaOverlay">
+  <video id="videoFull" playsinline webkit-playsinline></video>
+  <img id="imageFull" alt="" />
+  <div id="audioOverlay">
+    <div class="waveform-landscape">
+      <div class="waveform" id="waveform">
+        <span></span><span></span><span></span><span></span>
+        <span></span><span></span><span></span><span></span>
+        <span></span><span></span><span></span><span></span>
+        <span></span><span></span><span></span><span></span>
+      </div>
+    </div>
+    <div class="audio-title" id="audioTitle" style="display:none">—</div>
+    <audio id="audioEl"></audio>
+  </div>
+</div>
+
+<script>
+const _notifAudio = new Audio("assets/notif_sound.mp3");
+_notifAudio.preload = "auto";
+
+function playNotifSound() {
+  try { _notifAudio.currentTime = 0; _notifAudio.play().catch(e => console.log("[notif sound]", e)); } catch(e) {}
+}
+
+function vib(pattern) {
+  try {
+    if (navigator.vibrate) { navigator.vibrate(pattern); }
+  } catch(e) {}
+}
+
+function notify(vibPattern) {
+  playNotifSound();
+  vib(vibPattern || [150, 80, 150, 80, 250]);
+}
+
+const STORAGE_KEY = "prismPhoneId";
+let phoneId = localStorage.getItem(STORAGE_KEY);
+let selectedRole = null;
+let currentScreen = "role";
+let pendingTask = null;
+let activeBeforeMedia = null;
+
+function showScreen(id) {
+  document.querySelectorAll(".screen").forEach(s => s.classList.remove("active"));
+  document.getElementById(id).classList.add("active");
+  currentScreen = id.replace("screen", "").toLowerCase();
+  const bgVideo = document.getElementById("bgVideo");
+  bgVideo.style.display = (id === "screenRole" || id === "screenConnect") ? "block" : "none";
+}
+
+const ROLE_INSTRUCTIONS = {
+  "Technicien de tri": [
+    "1. Ouvrez le bon carton.",
+    "2. Triez les tissus encodés du carton selon leurs motifs."
+  ],
+  "Référent produit": [
+    "1. Pour chaque motif, sélectionnez la quantité de tissus indiquée sur la commande.",
+    "2. Posez l'ensemble sur la table du Responsable commande."
+  ],
+  "Responsable commande": [
+    "1. Prenez le tas de tissus préparé par le Référent produit.",
+    "2. Assemblez les tissus suivant le schéma qui vous sera indiqué."
+  ]
+};
+
+function selectRole(role) {
+  selectedRole = role;
+  document.querySelectorAll(".role-btn").forEach(b => {
+    b.classList.toggle("selected", b.textContent === role);
+  });
+  setTimeout(() => {
+    document.getElementById("connectRoleName").textContent = role;
+    const instructions = ROLE_INSTRUCTIONS[role] || [];
+    const el = document.getElementById("connectInstructions");
+    el.innerHTML = instructions
+      .map(line => `<div style="display:flex;gap:0.5rem;align-items:baseline;">
+        <span style="color:rgba(255,255,255,0.4);flex-shrink:0;">›</span>
+        <span>${line}</span>
+      </div>`)
+      .join("");
+    showScreen("screenConnect");
+  }, 350);
+}
+
+function onConnect() {
+  if (!phoneId || !phoneId.startsWith(selectedRole)) {
+    phoneId = selectedRole + " #" + Math.floor(Math.random() * 900 + 100);
+    localStorage.setItem(STORAGE_KEY, phoneId);
+  }
+  const roleMap2 = {
+    "Technicien de tri":    "technicien",
+    "Référent produit":     "referent",
+    "Responsable commande": "responsable"
+  };
+  localStorage.setItem("prismJobRole", roleMap2[selectedRole] || "unknown");
+  document.getElementById("idlePhoneId").textContent = phoneId;
+
+  const unlock = new Audio("data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEARKwAAIhYAQACABAAAABkYXRhAgAAAAEA");
+  unlock.volume = 0.001;
+  unlock.play().catch(() => {});
+  _notifAudio.load();
+  if (navigator.vibrate) navigator.vibrate([50]);
+
+  showScreen("screenIdle");
+  connect();
+}
+
+function showNotif(task) {
+  pendingTask = task;
+  notify([150, 80, 150, 80, 250]);
+  document.getElementById("notifOverlay").classList.add("show");
+}
+function hideNotif() { document.getElementById("notifOverlay").classList.remove("show"); }
+function openTask() {
+  hideNotif();
+  if (!pendingTask) return;
+  renderTask(pendingTask);
+  showScreen("screenTask");
+}
+
+const TASK_DATA = {
+  boite1:    { msg: null, btn: "Carton trié",       commande: "media/tri1.png" },
+  boite2:    { msg: null, btn: "Carton trié",       commande: "media/tri2.png" },
+  boite3:    { msg: null, btn: "Carton trié",       commande: "media/tri3.png" },
+  boite4:    { msg: null, btn: "Carton trié",       commande: "media/tri4.png" },
+  boite5:    { msg: null, btn: "Carton trié",       commande: "media/tri5.png" },
+  boite6:    { msg: null, btn: "Carton trié",       commande: "media/tri6.png" },
+  boite7:    { msg: null, btn: "Carton trié",       commande: "media/tri7.png" },
+  boite8:    { msg: null, btn: "Carton trié",       commande: "media/tri8.png" },
+  boite9:    { msg: null, btn: "Carton trié",       commande: "media/tri9.png" },
+  commande1: { msg: null, btn: "Commande complétée", commande: "media/commande1.png" },
+  commande2: { msg: null, btn: "Commande complétée", commande: "media/commande2.png" },
+  commande3: { msg: null, btn: "Commande complétée", commande: "media/commande3.png" },
+  commande4: { msg: null, btn: "Commande complétée", commande: "media/commande4.png" },
+  commande5: { msg: null, btn: "Commande complétée", commande: "media/commande5.png" },
+  commande6: { msg: null, btn: "Commande complétée", commande: "media/commande6.png" },
+  commande7: { msg: null, btn: "Commande complétée", commande: "media/commande7.png" },
+  commande8: { msg: null, btn: "Commande complétée", commande: "media/commande8.png" },
+  commande9: { msg: null, btn: "Commande complétée", commande: "media/commande9.png" },
+  pattern1:  { msg: null, btn: "Pattern assemblé",  commande: "media/pattern1.png" },
+  pattern2:  { msg: null, btn: "Pattern assemblé",  commande: "media/pattern2.png" },
+  pattern3:  { msg: null, btn: "Pattern assemblé",  commande: "media/pattern3.png" },
+  pattern4:  { msg: null, btn: "Pattern assemblé",  commande: "media/pattern4.png" },
+  pattern5:  { msg: null, btn: "Pattern assemblé",  commande: "media/pattern5.png" },
+  pattern6:  { msg: null, btn: "Pattern assemblé",  commande: "media/pattern6.png" },
+  pattern7:  { msg: null, btn: "Pattern assemblé",  commande: "media/pattern7.png" },
+  pattern8:  { msg: null, btn: "Pattern assemblé",  commande: "media/pattern8.png" },
+};
+
+function renderTask(taskKey) {
+  const data = TASK_DATA[taskKey];
+  if (!data) return;
+
+  const taskBg      = document.getElementById("taskBg");
+  const blurBg      = document.getElementById("taskBlurBg");
+  const taskInner   = document.querySelector(".task-inner");
+  const msgEl       = document.getElementById("taskMessage");
+  const patternImg  = document.getElementById("taskPatternImg");
+  const missionImg  = document.getElementById("taskMissionImg");
+  const commandeImg = document.getElementById("taskCommandeImg");
+
+  if (data.commande) {
+    blurBg.style.backgroundImage    = "url('media/BG_pcorp_tel.png')";
+    blurBg.style.backgroundSize     = "cover";
+    blurBg.style.backgroundPosition = "center";
+    blurBg.style.display = "block";
+    taskBg.style.display = "none";
+
+    document.getElementById("taskDoneBtn").style.position  = "fixed";
+    document.getElementById("taskDoneBtn").style.bottom    = "22vh";
+    document.getElementById("taskDoneBtn").style.left      = "50%";
+    document.getElementById("taskDoneBtn").style.transform = "translateX(-50%)";
+    document.getElementById("taskDoneBtn").style.zIndex    = "20";
+    document.getElementById("taskDoneBtn").style.marginTop = "0";
+    document.getElementById("taskDoneBtn").style.whiteSpace = "nowrap";
+    document.getElementById("taskDoneBtn").style.width     = "auto";
+
+    taskInner.style.cssText = "background:transparent;border:none;backdrop-filter:none;-webkit-backdrop-filter:none;box-shadow:none;padding:0;gap:1.5rem;justify-content:flex-start;align-items:center;max-height:100%;overflow:visible;padding-top:0vh;margin-top:-10vh;";
+
+    msgEl.style.display      = "none";
+    patternImg.style.display = "none";
+    missionImg.style.display = "none";
+
+    commandeImg.src           = data.commande;
+    commandeImg.style.display = "block";
+    commandeImg.style.width   = "80vw";
+    commandeImg.style.maxWidth = "340px";
+    commandeImg.style.height  = "auto";
+
+  } else {
+    blurBg.style.display = "none";
+    taskBg.style.display = "";
+
+    document.getElementById("taskDoneBtn").style.position  = "";
+    document.getElementById("taskDoneBtn").style.bottom    = "";
+    document.getElementById("taskDoneBtn").style.left      = "";
+    document.getElementById("taskDoneBtn").style.transform = "";
+    document.getElementById("taskDoneBtn").style.zIndex    = "";
+    document.getElementById("taskDoneBtn").style.marginTop = "";
+    document.getElementById("taskDoneBtn").style.whiteSpace = "";
+    document.getElementById("taskDoneBtn").style.width     = "";
+
+    taskBg.src                = "media/prism_fond_bleu.png";
+    taskBg.style.opacity      = "0.3";
+    taskBg.style.position     = "";
+    taskBg.style.inset        = "";
+    taskBg.style.width        = "";
+    taskBg.style.maxWidth     = "";
+    taskBg.style.height       = "";
+    taskBg.style.top          = "";
+    taskBg.style.left         = "";
+    taskBg.style.transform    = "";
+    taskBg.style.objectFit    = "";
+    taskBg.style.borderRadius = "";
+    taskInner.style.cssText   = "";
+
+    msgEl.style.display = "";
+    msgEl.innerHTML = data.msg ? data.msg.replace(/\n/g, "<br>") : "";
+
+    commandeImg.style.display = "none";
+    commandeImg.src = "";
+    missionImg.style.display = "none";
+
+    if (data.pattern) { patternImg.src = data.pattern; patternImg.style.display = "block"; }
+    else              { patternImg.style.display = "none"; patternImg.src = ""; }
+  }
+
+  document.getElementById("taskDoneBtn").textContent  = data.btn;
+  document.getElementById("taskDoneBtn").dataset.task = taskKey;
+}
+
+function taskDone() {
+  const taskKey = document.getElementById("taskDoneBtn").dataset.task;
+  pendingTask = null;
+  if (ws && ws.readyState === 1)
+    ws.send(JSON.stringify({ type: "task_done", task: taskKey }));
+  showScreen("screenIdle");
+}
+
+const mediaOverlay = document.getElementById("mediaOverlay");
+const videoFull    = document.getElementById("videoFull");
+const imageFull    = document.getElementById("imageFull");
+const audioEl      = document.getElementById("audioEl");
+const audioOverlay = document.getElementById("audioOverlay");
+const waveform     = document.getElementById("waveform");
+const audioTitle   = document.getElementById("audioTitle");
+
+function openMediaOverlay() {
+  activeBeforeMedia = currentScreen;
+  mediaOverlay.classList.add("show");
+  vib([120, 60, 120]);
+}
+
+function closeMediaOverlay() {
+  mediaOverlay.classList.remove("show");
+  videoFull.style.display = "none"; videoFull.src = "";
+  try { videoFull.pause(); } catch(e) {}
+  imageFull.style.display = "none"; imageFull.src = "";
+  audioOverlay.classList.remove("show");
+  audioEl.src = "";
+  try { audioEl.pause(); } catch(e) {}
+  waveform.classList.remove("playing");
+  if (activeBeforeMedia) showScreen("screen" + capitalize(activeBeforeMedia));
+  activeBeforeMedia = null;
+}
+
+function capitalize(s) { return s.charAt(0).toUpperCase() + s.slice(1); }
+
+videoFull.addEventListener("ended", closeMediaOverlay);
+audioEl.addEventListener("ended", closeMediaOverlay);
+
+function flashCmd(type, text) {
+  const f = document.getElementById("cmdFlash");
+  f.textContent = text; f.className = "show " + type;
+  clearTimeout(window._flashT);
+  window._flashT = setTimeout(() => { f.className = type; }, 2000);
+}
+
+const WS_HOST = location.hostname;
+const WS_PORT = location.port || 3000;
+let ws;
+
+function sendStatus(status) {
+  if (ws && ws.readyState === 1)
+    ws.send(JSON.stringify({ type: "status", status }));
+}
+
+function connect() {
+  ws = new WebSocket(`ws://${WS_HOST}:${WS_PORT}`);
+  ws.onopen = () => {
+    const roleMap = {
+      "Technicien de tri":    "technicien",
+      "Référent produit":     "referent",
+      "Responsable commande": "responsable"
+    };
+    const jobRole = localStorage.getItem("prismJobRole") || roleMap[selectedRole] || "unknown";
+    ws.send(JSON.stringify({ type: "register_phone", phoneId, jobRole }));
+  };
+  ws.onclose = () => { setTimeout(connect, 3000); };
+  ws.onerror = () => {};
+  ws.onmessage = (evt) => {
+    let msg;
+    try { msg = JSON.parse(evt.data); } catch { return; }
+    if (msg.type === "command") handleCommand(msg.action, msg.payload || {});
+  };
+}
+
+function handleCommand(action, payload) {
+  switch (action) {
+    case "boite1": case "boite2": case "boite3": case "boite4": case "boite5":
+    case "boite6": case "boite7": case "boite8": case "boite9":
+    case "commande1": case "commande2": case "commande3": case "commande4":
+    case "commande5": case "commande6": case "commande7": case "commande8": case "commande9":
+    case "pattern1": case "pattern2": case "pattern3": case "pattern4":
+    case "pattern5": case "pattern6": case "pattern7": case "pattern8":
+      showNotif(action);
+      sendStatus("notif_" + action);
+      break;
+
+    case "play_video":
+      openMediaOverlay();
+      audioOverlay.classList.remove("show");
+      imageFull.style.display = "none";
+      videoFull.src = payload.url;
+      videoFull.style.display = "block";
+      videoFull.play().catch(() => {});
+      sendStatus("playing_video");
+      break;
+
+    case "show_image":
+      openMediaOverlay();
+      audioOverlay.classList.remove("show");
+      videoFull.style.display = "none";
+      imageFull.src = payload.url;
+      imageFull.style.display = "block";
+      sendStatus("showing_image");
+      clearTimeout(window._imgTimer);
+      window._imgTimer = setTimeout(() => { closeMediaOverlay(); }, 6000);
+      break;
+
+    case "play_audio":
+      openMediaOverlay();
+      videoFull.style.display = "none";
+      imageFull.style.display = "none";
+      audioEl.src = payload.url;
+      audioTitle.textContent = payload.title || payload.url.split("/").pop();
+      audioOverlay.classList.add("show");
+      waveform.classList.add("playing");
+      audioEl.play().catch(() => {});
+      sendStatus("playing_audio");
+      break;
+
+    case "pause":
+      try { videoFull.pause(); } catch(e) {}
+      try { audioEl.pause(); } catch(e) {}
+      waveform.classList.remove("playing");
+      flashCmd("stop", "⏸ Pause");
+      sendStatus("paused");
+      break;
+
+    case "resume":
+      if (videoFull.src) videoFull.play().catch(() => {});
+      if (audioEl.src) audioEl.play().catch(() => {});
+      waveform.classList.add("playing");
+      flashCmd("play", "▶ Reprise");
+      sendStatus("playing");
+      break;
+
+    case "stop":
+      closeMediaOverlay();
+      flashCmd("stop", "⏹ Stop");
+      sendStatus("idle");
+      break;
+
+    case "show_text":
+      openTextScreen(payload.text || "");
+      sendStatus("showing_text");
+      break;
+
+    case "volume":
+      videoFull.volume = payload.value;
+      audioEl.volume = payload.value;
+      break;
+  }
+}
+
+function openTextScreen(text) {
+  document.getElementById("textDisplay").textContent = "> " + text;
+  showScreen("screenText");
+  vib([100, 60, 100]);
+  clearTimeout(window._textTimer);
+  window._textTimer = setTimeout(() => { closeTextScreen(); }, 6000);
+}
+function closeTextScreen() {
+  sendStatus("idle");
+  showScreen("screenIdle");
+}
+
+document.getElementById("bgVideo").style.display = "block";
+</script>
+</body>
+</html>

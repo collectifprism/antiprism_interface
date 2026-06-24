@@ -1,0 +1,751 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ANTIPRISM — Interface de contrôle</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<style>
+@font-face { font-family:'SourceCodePro'; src:url('fonts/SourceCodePro-Regular.ttf') format('truetype'); font-weight:400; }
+@font-face { font-family:'SourceCodePro'; src:url('fonts/SourceCodePro-Bold.ttf')    format('truetype'); font-weight:700; }
+@font-face { font-family:'Eurostile';     src:url('fonts/eurostile.ttf')             format('truetype'); font-weight:400; }
+
+*,*::before,*::after { box-sizing:border-box; margin:0; padding:0; }
+
+:root {
+  --black:#0a0a0a;
+  --bdark:rgba(255,255,255,0.08);
+  --bbright:rgba(255,255,255,0.22);
+  --tdim:rgba(255,255,255,0.45);
+  --tmid:rgba(255,255,255,0.72);
+  --tbright:#fff;
+  --green:#00f073;
+  --pink:#ff1790;
+  --purple:#7d0ced;
+  --red:#ff0032;
+  --blue:#00aaff;
+  --orange:#ff8c00;
+  --fs-xs:0.72vw;
+  --fs-sm:0.82vw;
+  --fs-md:0.92vw;
+  --pad-sm:0.5vw;
+  --pad-md:0.8vw;
+  --pad-lg:1.2vw;
+  --sidebar:11vw;
+  --iframe-w: 74%;
+  --iframe-h: 96%;
+}
+
+html,body {
+  width:100%; height:100vh; overflow:hidden;
+  background:var(--black);
+  font-family:'SourceCodePro',monospace;
+  color:var(--tbright);
+}
+
+body::before {
+  content:''; position:fixed; inset:0; z-index:0;
+  background:url('media/fond_prism01.png') center/cover no-repeat;
+  opacity:0.3; pointer-events:none;
+}
+body::after {
+  content:''; position:fixed; inset:0; z-index:0;
+  background:linear-gradient(135deg,rgba(0,0,0,0.65) 0%,rgba(5,5,20,0.85) 100%);
+  pointer-events:none;
+}
+
+.shell {
+  position:relative; z-index:1;
+  display:flex; flex-direction:column;
+  height:100vh; overflow:hidden;
+}
+
+.topbar-global {
+  flex-shrink:0;
+  display:flex; align-items:center; justify-content:space-between;
+  padding:0.4vh 2vw;
+  background:rgba(0,0,0,0.75);
+  border-bottom:1px solid var(--bdark);
+  font-size:var(--fs-xs); letter-spacing:0.12em; color:var(--tdim);
+}
+.topbar-global b { color:var(--orange); }
+.topbar-right { display:flex; gap:3vw; }
+.topbar-right b { color:var(--tmid); }
+
+.addrbar-global {
+  flex-shrink:0;
+  display:flex; align-items:center;
+  font-size:var(--fs-xs); letter-spacing:0.08em;
+  background:rgba(0,0,0,0.45);
+  border-bottom:1px solid var(--bdark);
+  padding:0.2vh var(--pad-lg);
+  gap:3vw; color:var(--tdim);
+}
+.addrbar-global b { color:var(--tmid); }
+
+.main {
+  flex:1; min-height:0; overflow:hidden;
+  display:grid;
+  grid-template-columns:var(--sidebar) 1fr;
+  position:relative;
+}
+
+/* ── SIDEBAR ── */
+.sidebar {
+  border-right:1px solid var(--bdark);
+  background:rgba(0,0,0,0.5);
+  display:flex; flex-direction:column;
+  overflow:hidden; padding:0; z-index:10;
+}
+.sidebar-section {
+  padding:0.4vh 0.7vw 0.3vh;
+  font-size:0.6vw; letter-spacing:0.16em; text-transform:uppercase;
+  color:var(--tdim); border-bottom:1px solid var(--bdark);
+}
+.sidebar-nav-item {
+  padding:0.55vh 0.8vw;
+  font-size:0.7vw; letter-spacing:0.07em; color:var(--tdim);
+  cursor:pointer; border-left:2px solid transparent; transition:all 0.15s;
+  border-bottom:1px solid rgba(255,255,255,0.03);
+}
+.sidebar-nav-item:hover { color:var(--tmid); background:rgba(255,255,255,0.03); }
+.sidebar-nav-item.active { color:var(--orange); border-left-color:var(--orange); }
+.sidebar-phones { padding:0.5vh 0.6vw; border-top:1px solid var(--bdark); flex:1; overflow-y:auto; min-height:0; }
+.sidebar-phones-title { font-size:0.58vw; letter-spacing:0.14em; text-transform:uppercase; color:var(--tdim); margin-bottom:0.4vh; }
+.phone-card { display:flex; align-items:center; justify-content:space-between; padding:0.3vh 0.45vw; margin-bottom:0.25vh; background:rgba(255,255,255,0.04); border:1px solid var(--bdark); border-radius:2px; cursor:pointer; transition:all 0.15s; }
+.phone-card:hover { background:rgba(255,140,0,0.08); border-color:rgba(255,140,0,0.3); }
+.phone-card.selected { background:rgba(255,140,0,0.12); border-color:var(--orange); }
+.phone-name { font-size:0.68vw; color:var(--tmid); }
+.phone-card.selected .phone-name { color:var(--orange); }
+.phone-dot { width:0.4vw; height:0.4vw; min-width:4px; min-height:4px; border-radius:50%; background:var(--tdim); }
+.phone-card.selected .phone-dot { background:var(--orange); box-shadow:0 0 4px var(--orange); }
+.phone-empty { font-size:0.62vw; color:var(--tdim); padding:0.3vh 0; font-style:italic; }
+.sidebar-addr { padding:0.6vh 0.6vw; border-top:1px solid var(--bdark); }
+.sidebar-addr-label { font-size:0.58vw; letter-spacing:0.1em; text-transform:uppercase; color:var(--tdim); margin-bottom:0.35vh; }
+.sidebar-addr-url { font-size:0.62vw; color:var(--orange); word-break:break-all; line-height:1.5; }
+
+/* ── ZONE CENTRALE ── */
+.center-zone { position:relative; overflow:hidden; background:transparent; }
+
+.iframe-wrapper {
+  position:absolute; top:50%; left:50%;
+  transform:translate(-50%,-50%);
+  width:var(--iframe-w);
+  height:calc(var(--iframe-h) + 2.8vh);
+  display:flex; flex-direction:column; z-index:15;
+}
+.iframe-addrbar {
+  flex-shrink:0; width:100%;
+  display:flex; align-items:center;
+  background:rgba(255,140,0,0.92);
+  padding:0.3vh 0.8vw;
+  font-size:0.68vw; letter-spacing:0.07em;
+  color:#000; font-weight:700; gap:0;
+  border-radius:2px 2px 0 0;
+}
+.iframe-addrbar .addr-host { background:rgba(0,0,0,0.25); color:#000; font-weight:700; padding:0.1vh 0.5vw; margin-right:0.4vw; font-size:0.68vw; border-radius:2px; }
+.iframe-addrbar .addr-path { color:#1a1a1a; padding:0 0.3vw; flex:1; }
+.iframe-addrbar .addr-stats { display:flex; gap:1.5vw; font-size:0.62vw; font-weight:400; color:#333; margin-left:auto; }
+.iframe-addrbar .addr-stats b { color:#000; font-weight:700; }
+.iframe-addrbar-rec { display:flex; align-items:center; gap:0.3vw; margin-left:1vw; font-size:0.62vw; font-weight:700; color:#fff; background:rgba(255,0,50,0.9); padding:0.1vh 0.5vw; border-radius:2px; }
+.iframe-frame { flex:1; width:100%; border:1px solid rgba(255,140,0,0.6); border-top:none; box-shadow:0 0 0 1px rgba(255,140,0,0.15), 0 0 60px rgba(255,140,0,0.08), 0 20px 80px rgba(0,0,0,0.4); overflow:hidden; }
+.corp-iframe { width:100%; height:100%; border:none; pointer-events:none; transform-origin:top left; display:block; }
+.corner { position:absolute; width:14px; height:14px; border-color:var(--orange); border-style:solid; z-index:25; }
+.corner-tl { top:-1px; left:-1px; border-width:2px 0 0 2px; }
+.corner-tr { top:-1px; right:-1px; border-width:2px 2px 0 0; }
+.corner-bl { bottom:-1px; left:-1px; border-width:0 0 2px 2px; }
+.corner-br { bottom:-1px; right:-1px; border-width:0 2px 2px 0; }
+
+/* ── FENÊTRES FLOTTANTES ── */
+.float-win {
+  position:fixed; z-index:500;
+  display:flex; flex-direction:column;
+  background:rgba(6,6,14,0.55);
+  backdrop-filter:blur(14px); -webkit-backdrop-filter:blur(14px);
+  border:1px solid rgba(255,255,255,0.28);
+  box-shadow:0 8px 40px rgba(0,0,0,0.65);
+  overflow:hidden;
+}
+.float-titlebar {
+  flex-shrink:0;
+  display:flex; align-items:center; gap:0.5vw;
+  padding:0.5vh var(--pad-md);
+  background:rgba(255,255,255,0.05);
+  border-bottom:1px solid rgba(255,255,255,0.1);
+  cursor:grab; user-select:none;
+  font-size:var(--fs-xs); letter-spacing:0.2em; text-transform:uppercase; color:var(--tdim);
+}
+.float-titlebar:active { cursor:grabbing; }
+.float-dot { width:0.5vw; height:0.5vw; min-width:6px; min-height:6px; border-radius:50%; }
+
+#winPhones { width:18vw; min-width:190px; left:var(--sidebar); top:28vh; }
+.phones-body { padding:0.6vh 0.8vw; }
+
+#winTarget { width:18vw; min-width:190px; left:var(--sidebar); top:52vh; }
+.target-body-float { padding:0.7vh 0.8vw; min-height:50px; }
+.target-val  { font-size:var(--fs-xs); color:var(--orange); font-weight:700; }
+.target-none { font-size:var(--fs-xs); color:var(--tdim); font-style:italic; }
+
+#winLog { width:18vw; min-width:190px; left:var(--sidebar); bottom:0; max-height:22vh; }
+.log-body { flex:1; overflow-y:auto; padding:0.4vh 0.8vw; max-height:17vh; }
+.log { font-size:var(--fs-xs); line-height:1.9; display:flex; flex-direction:column; }
+.log-entry { display:flex; gap:0.6vw; }
+.log-time  { color:var(--blue); flex-shrink:0; opacity:0.75; }
+.log-msg   { color:var(--tmid); }
+.log-ok   .log-msg { color:var(--green); }
+.log-err  .log-msg { color:var(--red); }
+.log-task .log-msg { color:var(--orange); }
+
+/* ── FENÊTRE MÉDIAS — plus compacte, sans aperçu ── */
+#winMedia {
+  width:26vw;
+  min-width:260px;
+  right:0.8vw; top:2vh;
+  max-height:96vh;
+}
+.media-body {
+  flex:1; overflow-y:auto;
+  padding:var(--pad-md) calc(var(--pad-md) * 1.2);
+  display:flex; flex-direction:column; gap:1.1vh;
+}
+.media-section-label {
+  font-size:var(--fs-xs); letter-spacing:0.16em; text-transform:uppercase;
+  color:var(--tdim); margin-bottom:0.35vh;
+}
+.media-input-row { display:flex; gap:0.4vw; align-items:stretch; }
+
+input[type=text] {
+  flex:1; font-family:'SourceCodePro',monospace;
+  background:rgba(255,255,255,0.06); border:1px solid var(--bdark);
+  border-radius:3px; padding:0.4vh var(--pad-sm);
+  color:var(--tbright); font-size:var(--fs-xs); outline:none; transition:border-color 0.2s;
+}
+input[type=text]:focus { border-color:var(--bbright); }
+input[type=text]::placeholder { color:var(--tdim); }
+
+textarea {
+  width:100%; font-family:'SourceCodePro',monospace;
+  background:rgba(255,255,255,0.06); border:1px solid var(--bdark);
+  border-radius:3px; padding:0.4vh 0.5vw;
+  color:var(--tbright); font-size:var(--fs-xs); outline:none;
+  resize:vertical; line-height:1.6; transition:border-color 0.2s;
+}
+textarea:focus { border-color:var(--bbright); }
+
+.media-btn {
+  font-size:var(--fs-xs); font-weight:700;
+  padding:0.4vh 0.8vw; border-radius:3px;
+  cursor:pointer; white-space:nowrap; transition:all 0.15s;
+  font-family:'SourceCodePro',monospace;
+  background:rgba(0,240,115,0.18); color:var(--green);
+  border:1px solid rgba(0,240,115,0.5);
+}
+.media-btn:disabled { opacity:0.25; cursor:not-allowed; }
+.media-btn:hover:not(:disabled) { background:rgba(0,240,115,0.28); border-color:var(--green); box-shadow:0 0 8px rgba(0,240,115,0.2); }
+
+/* ── BOUTONS PRESET — plus grands et lisibles ── */
+.presets {
+  display:flex; flex-wrap:wrap; gap:0.4vw; margin-top:0.4vh;
+}
+.preset-btn {
+  /* Taille augmentée pour lisibilité */
+  font-size:clamp(9px, 0.8vw, 11px);
+  padding:0.35vh 0.7vw;
+  border-radius:3px;
+  background:rgba(255,255,255,0.08);
+  border:1px solid var(--bdark);
+  color:var(--tmid);
+  cursor:pointer; transition:all 0.15s;
+  font-family:'SourceCodePro',monospace;
+  letter-spacing:0.04em;
+  line-height:1.4;
+}
+.preset-btn:hover { border-color:var(--bbright); color:var(--tbright); background:rgba(255,255,255,0.12); }
+
+.msep { height:1px; background:var(--bdark); margin:0.2vh 0; }
+
+/* Transport */
+.transport-row { display:flex; gap:0.4vw; flex-wrap:wrap; }
+.tb {
+  font-size:var(--fs-xs); font-weight:700;
+  padding:0.38vh 0.8vw; border-radius:3px;
+  cursor:pointer; transition:all 0.15s; background:transparent;
+  font-family:'SourceCodePro',monospace;
+}
+.tb:disabled { opacity:0.25; cursor:not-allowed; }
+.tb-pause { border:1px solid var(--bbright); color:var(--tmid); }
+.tb-pause:hover:not(:disabled) { background:rgba(255,255,255,0.07); }
+.tb-play  { border:1px solid var(--green); color:var(--green); }
+.tb-play:hover:not(:disabled)  { background:rgba(0,240,115,0.1); }
+.tb-stop  { border:1px solid var(--red); color:var(--red); }
+.tb-stop:hover:not(:disabled)  { background:rgba(255,0,50,0.1); }
+
+.vol-row { display:flex; align-items:center; gap:0.5vw; margin-top:0.4vh; }
+.vol-label { font-size:var(--fs-xs); color:var(--tdim); letter-spacing:0.1em; text-transform:uppercase; min-width:2vw; }
+.vol-val   { font-size:var(--fs-xs); color:var(--orange); font-weight:700; min-width:2.5vw; text-align:right; }
+input[type=range] { flex:1; -webkit-appearance:none; height:2px; background:rgba(255,140,0,0.3); border-radius:2px; outline:none; cursor:pointer; }
+input[type=range]::-webkit-slider-thumb { -webkit-appearance:none; width:0.9vw; height:0.9vw; min-width:9px; min-height:9px; border-radius:50%; background:var(--orange); cursor:pointer; }
+
+/* ── FENÊTRE APERÇU FLOTTANTE INDÉPENDANTE ── */
+#winPreview {
+  width:24vw; min-width:240px;
+  right:27vw; top:2vh;  /* à gauche de winMedia */
+  max-height:72vh;
+  min-height:300px;
+}
+.preview-win-body {
+  flex:1; padding:0.6vw;
+  display:flex; flex-direction:column;
+  gap:0.5vh; overflow:hidden;
+}
+/* Zone d'aperçu — grande, contenu en entier */
+.preview-area-large {
+  flex:1;
+  position:relative;
+  background:rgba(0,0,0,0.6);
+  border:1px solid var(--bdark);
+  border-radius:4px;
+  overflow:hidden;
+  display:flex; align-items:center; justify-content:center;
+  min-height:160px;
+}
+/* image — object-fit:contain pour tout voir */
+.preview-area-large img#previewImg {
+  position:absolute; inset:0;
+  width:100%; height:100%;
+  object-fit:contain;
+  display:none;
+}
+/* vidéo */
+.preview-area-large video#previewVid {
+  position:absolute; inset:0;
+  width:100%; height:100%;
+  object-fit:contain;
+  display:none;
+}
+/* audio */
+.preview-area-large .preview-audio {
+  display:none; flex-direction:column; align-items:center; gap:0.8vh;
+  color:var(--green);
+}
+.preview-area-large .preview-audio svg { width:3vw; height:3vw; min-width:36px; min-height:36px; }
+.preview-area-large .preview-audio span { font-size:clamp(9px,0.8vw,11px); color:var(--tdim); letter-spacing:0.06em; word-break:break-all; text-align:center; max-width:85%; }
+/* texte */
+.preview-area-large .preview-text {
+  display:none; padding:1vh 1vw;
+  font-size:clamp(10px,0.9vw,13px); color:var(--tbright); line-height:1.6;
+  text-align:center; overflow:hidden; font-family:'SourceCodePro',monospace;
+}
+/* placeholder */
+.preview-placeholder {
+  display:flex; flex-direction:column; align-items:center; gap:0.6vh;
+  color:var(--tdim); position:absolute;
+}
+.preview-placeholder svg { width:2.5vw; height:2.5vw; min-width:28px; min-height:28px; opacity:0.3; }
+.preview-placeholder span { font-size:clamp(8px,0.7vw,10px); letter-spacing:0.1em; text-transform:uppercase; }
+/* badge type */
+.preview-badge {
+  position:absolute; top:5px; left:5px; z-index:2;
+  font-size:clamp(7px,0.6vw,9px); letter-spacing:0.1em; text-transform:uppercase;
+  background:rgba(0,0,0,0.75); color:var(--green); padding:2px 6px; border-radius:2px;
+  display:none;
+}
+
+/* STATUS BAR */
+.statusbar {
+  flex-shrink:0; padding:0.25vh var(--pad-lg);
+  border-top:1px solid var(--bdark); background:rgba(0,0,0,0.6);
+  font-size:var(--fs-xs); letter-spacing:0.12em; color:var(--tdim);
+  display:flex; align-items:center; gap:2vw;
+}
+.ws-indicator { display:flex; align-items:center; gap:0.4vw; }
+.ws-dot { width:0.45vw; height:0.45vw; min-width:5px; min-height:5px; border-radius:50%; background:var(--tdim); }
+.ws-indicator.ok  .ws-dot { background:var(--green); box-shadow:0 0 5px var(--green); }
+.ws-indicator.ok  { color:var(--green); }
+.ws-indicator.err .ws-dot { background:var(--red); }
+.ws-indicator.err { color:var(--red); }
+.rec-dot { width:0.45vw; height:0.45vw; min-width:5px; min-height:5px; border-radius:50%; background:#fff; animation:recblink 1.2s ease-in-out infinite; display:inline-block; }
+@keyframes recblink { 0%,100%{opacity:1} 50%{opacity:0.2} }
+
+::-webkit-scrollbar { width:3px; }
+::-webkit-scrollbar-track { background:transparent; }
+::-webkit-scrollbar-thumb { background:rgba(255,255,255,0.1); border-radius:2px; }
+</style>
+</head>
+<body>
+<div class="shell">
+
+  <div class="topbar-global">
+    <span>host: <b id="hostName">hippo23</b></span>
+    <div class="topbar-right">
+      <span>statut: <b>anonyme</b></span>
+      <span>IP: <b>47.***.***. ***</b></span>
+      <span>securité: niv. <b>5</b></span>
+    </div>
+  </div>
+
+  <div class="addrbar-global">
+    <span>statut: <b>connecté</b></span>
+    <span>IP serveur: <b id="serverIp">—</b></span>
+    <span>securité: niv. <b>3</b></span>
+    <span style="margin-left:auto; color:var(--orange); display:flex; align-items:center; gap:0.4vw;">
+      <span class="rec-dot"></span> Network module initialized.
+    </span>
+  </div>
+
+  <div class="main">
+    <div class="sidebar">
+      <div class="sidebar-section">Navigation</div>
+      <div class="sidebar-nav-item active">scanner le réseau</div>
+      <div class="sidebar-nav-item">intercepter</div>
+      <div class="sidebar-nav-item">arrêter la connexion</div>
+      <div class="sidebar-nav-item">nouveau terminal</div>
+      <div class="sidebar-section" style="margin-top:0.5vh">Adresse connection tels</div>
+      <div class="sidebar-addr">
+        <div class="sidebar-addr-url" id="phoneUrlSidebar">—</div>
+      </div>
+      <div class="sidebar-phones"></div>
+    </div>
+
+    <div class="center-zone">
+      <div class="iframe-wrapper">
+        <div class="iframe-addrbar">
+          <span class="addr-host">target host:</span>
+          <span class="addr-path"> //bureau/prism.corporation.paneldecontrole/</span>
+          <div class="addr-stats">
+            <span>statut: <b>connecté</b></span>
+            <span>securité: niv. <b>3</b></span>
+          </div>
+          <div class="iframe-addrbar-rec"><span class="rec-dot"></span>Rec</div>
+        </div>
+        <div class="iframe-frame" id="iframeFrame">
+          <div class="corner corner-tl"></div>
+          <div class="corner corner-tr"></div>
+          <div class="corner corner-bl"></div>
+          <div class="corner corner-br"></div>
+          <iframe class="corp-iframe" id="corpIframe" src="prism-corp.html" scrolling="no"></iframe>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="statusbar">
+    <div class="ws-indicator" id="wsStatus"><div class="ws-dot"></div><span id="wsStatusText">Connexion…</span></div>
+    <span id="statusExtra">antiPRISM // terminal actif</span>
+  </div>
+
+</div>
+
+<!-- ════ FENÊTRES FLOTTANTES ════ -->
+
+<!-- Téléphones -->
+<div class="float-win" id="winPhones">
+  <div class="float-titlebar" id="dragPhones">
+    <div class="float-dot" style="background:var(--orange)"></div>
+    téléphones connectés
+  </div>
+  <div class="phones-body">
+    <div id="phonesList"><div class="phone-empty">Aucun téléphones connectés</div></div>
+  </div>
+</div>
+
+<!-- Cibles -->
+<div class="float-win" id="winTarget">
+  <div class="float-titlebar" id="dragTarget">
+    <div class="float-dot" style="background:var(--orange)"></div>
+    cibles sélectionnées
+  </div>
+  <div class="target-body-float">
+    <div id="targetLabel" class="target-none">Sélectionner un téléphone →</div>
+  </div>
+</div>
+
+<!-- Journal -->
+<div class="float-win" id="winLog">
+  <div class="float-titlebar" id="dragLog">
+    <div class="float-dot" style="background:var(--blue)"></div>
+    journal
+  </div>
+  <div class="log-body"><div class="log" id="log"></div></div>
+</div>
+
+<!-- ════ FENÊTRE APERÇU — indépendante ════ -->
+<div class="float-win" id="winPreview">
+  <div class="float-titlebar" id="dragPreview">
+    <div class="float-dot" style="background:var(--green)"></div>
+    aperçu — média sélectionné
+  </div>
+  <div class="preview-win-body">
+    <div class="preview-area-large">
+      <span class="preview-badge" id="previewBadge">—</span>
+      <div class="preview-placeholder" id="previewPlaceholder">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+          <rect x="3" y="3" width="18" height="18" rx="2"/>
+          <circle cx="8.5" cy="8.5" r="1.5"/>
+          <polyline points="21,15 16,10 5,21"/>
+        </svg>
+        <span>Aucun média sélectionné</span>
+      </div>
+      <img id="previewImg" alt="aperçu">
+      <video id="previewVid" muted loop autoplay playsinline></video>
+      <div class="preview-audio" id="previewAudio">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+          <path d="M9 18V5l12-2v13"/>
+          <circle cx="6" cy="18" r="3"/>
+          <circle cx="18" cy="16" r="3"/>
+        </svg>
+        <span id="previewAudioName">—</span>
+      </div>
+      <div class="preview-text" id="previewText"></div>
+    </div>
+  </div>
+</div>
+
+<!-- ════ FENÊTRE MÉDIAS — sans aperçu intégré ════ -->
+<div class="float-win" id="winMedia">
+  <div class="float-titlebar" id="dragMedia">
+    <div class="float-dot" style="background:var(--green)"></div>
+    envoyer un média
+  </div>
+  <div class="media-body">
+
+    <!-- VIDÉO -->
+    <div>
+      <div class="media-section-label">vidéo</div>
+      <div class="media-input-row">
+        <input type="text" id="videoUrl" placeholder="url.mp4/.webm..."
+          oninput="updatePreview('video',this.value)">
+        <button class="media-btn" id="btnVideo" onclick="sendVideo()" disabled>▶ lancer</button>
+      </div>
+      <div class="presets">
+        <button class="preset-btn" onclick="fillV('media/VIDEO1PHASE1.mp4')">INTERRUPTION_P1</button>
+        <button class="preset-btn" onclick="fillV('media/VIDEO1PHASE2.mp4')">CLE_P2</button>
+        <button class="preset-btn" onclick="fillV('media/VIDEO2PHASE2.mp4')">COMMANDE_BUG_P2</button>
+        <button class="preset-btn" onclick="fillV('media/VIDEO1PHASE3.mp4')">COULEUR_P3</button>
+        <button class="preset-btn" onclick="fillV('media/VIDEO2PHASE3.mp4')">BOITE_P3</button>
+        <button class="preset-btn" onclick="fillV('media/VIDEO3PHASE3.mp4')">ETAGERE_P3</button>
+      </div>
+    </div>
+
+    <div class="msep"></div>
+
+    <!-- IMAGE -->
+    <div>
+      <div class="media-section-label">image</div>
+      <div class="media-input-row">
+        <input type="text" id="imageUrl" placeholder="url.jpg/.png/.gif..."
+          oninput="updatePreview('image',this.value)">
+        <button class="media-btn" id="btnImage" onclick="sendImage()" disabled>▶ lancer</button>
+      </div>
+      <div class="presets">
+        <button class="preset-btn" onclick="fillI('media/meme_severance02.png')">SEVERANCE</button>
+        <button class="preset-btn" onclick="fillI('media/fleche01.png')">ARROW</button>
+      </div>
+    </div>
+
+    <div class="msep"></div>
+
+    <!-- AUDIO -->
+    <div>
+      <div class="media-section-label">audio</div>
+      <div class="media-input-row">
+        <input type="text" id="audioUrl" placeholder="url.mp3/.ogg..."
+          oninput="updatePreview('audio',this.value)">
+        <button class="media-btn" id="btnAudio" onclick="sendAudio()" disabled>▶ lancer</button>
+      </div>
+      <div class="presets">
+        <button class="preset-btn" onclick="fillA('media/keys-on-door.wav')">CLE_PORTE_SON</button>
+      </div>
+    </div>
+
+    <div class="msep"></div>
+
+    <!-- TEXTE -->
+    <div>
+      <div class="media-section-label">texte personnalisé</div>
+      <textarea id="customText" rows="2" placeholder="Entrez du texte ici …"
+        oninput="updatePreview('text',this.value)"></textarea>
+      <div style="margin-top:0.5vh">
+        <button class="media-btn" id="btnCustomText" onclick="sendCustomText()" disabled>▶ lancer</button>
+      </div>
+    </div>
+
+    <div class="msep"></div>
+
+    <!-- Transport -->
+    <div>
+      <div class="transport-row">
+        <button class="tb tb-pause" id="btnPause"  onclick="send('pause')"  disabled>⏸ Pause</button>
+        <button class="tb tb-play"  id="btnResume" onclick="send('resume')" disabled>▶ Replay</button>
+        <button class="tb tb-stop"  id="btnStop"   onclick="send('stop')"   disabled>■ Stop</button>
+      </div>
+      <div class="vol-row">
+        <span class="vol-label">Volume</span>
+        <input type="range" id="volumeSlider" min="0" max="1" step="0.01" value="0.85" oninput="updateVolume(this.value)">
+        <span class="vol-val" id="volVal">85%</span>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<script>
+(async () => {
+  try {
+    const cfg = await fetch("/config.json").then(r=>r.json());
+    document.getElementById("serverIp").textContent = cfg.ip+":"+cfg.port;
+    const url = `http://${cfg.ip}:${cfg.port}/phone.html`;
+    document.getElementById("phoneUrlSidebar").textContent = url;
+  } catch(e) {}
+})();
+
+function scaleIframe() {
+  const frame = document.getElementById("iframeFrame");
+  const iframe = document.getElementById("corpIframe");
+  if (!frame || !iframe) return;
+  const availW = frame.offsetWidth;
+  const availH = frame.offsetHeight;
+  const nativeW = 1280, nativeH = 900;
+  const scale = Math.min(availW/nativeW, availH/nativeH);
+  iframe.style.width = nativeW+"px";
+  iframe.style.height = nativeH+"px";
+  iframe.style.transform = `scale(${scale})`;
+  iframe.style.transformOrigin = "top left";
+}
+window.addEventListener("resize", scaleIframe);
+document.getElementById("corpIframe").addEventListener("load", scaleIframe);
+setTimeout(scaleIframe, 200);
+setTimeout(scaleIframe, 800);
+
+let ws, selectedPhone=null, phones=[];
+const MEDIA_BTNS = ["btnVideo","btnImage","btnAudio","btnCustomText","btnPause","btnResume","btnStop"];
+
+function connect() {
+  ws = new WebSocket(`ws://${location.hostname}:${location.port||3000}`);
+  ws.onopen = () => {
+    ws.send(JSON.stringify({ type:"register_controller", page:"antiprism" }));
+    setWS("ok","Connecté"); log("Contrôleur antiPRISM connecté","ok");
+  };
+  ws.onclose = () => { setWS("err","Déconnecté"); log("Connexion perdue…","err"); setTimeout(connect,3000); };
+  ws.onerror  = () => setWS("err","Erreur");
+  ws.onmessage = (evt) => {
+    let m; try { m=JSON.parse(evt.data); } catch { return; }
+    if      (m.type==="phone_list")   { phones=m.phones; renderPhones(); }
+    else if (m.type==="phone_status") document.getElementById("statusExtra").textContent=m.phoneId+" → "+m.status;
+    else if (m.type==="task_done")    log(`✅ "${m.task}" ← ${m.phoneId}`,"task");
+    else if (m.type==="error")        log(m.message,"err");
+  };
+}
+function setWS(cls,text) {
+  document.getElementById("wsStatus").className="ws-indicator "+cls;
+  document.getElementById("wsStatusText").textContent=text;
+}
+
+function renderPhones() {
+  const c=document.getElementById("phonesList");
+  if (!phones.length) { c.innerHTML='<div class="phone-empty">Aucun connecté</div>'; selectPhone(null); return; }
+  c.innerHTML="";
+  phones.forEach(id=>{
+    const d=document.createElement("div");
+    d.className="phone-card"+(id===selectedPhone?" selected":"");
+    d.innerHTML=`<span class="phone-name">📱 ${id}</span><span class="phone-dot"></span>`;
+    d.onclick=()=>selectPhone(id);
+    c.appendChild(d);
+  });
+}
+function selectPhone(id) {
+  selectedPhone=id; renderPhones();
+  const tl=document.getElementById("targetLabel");
+  if (id) { tl.className="target-val"; tl.textContent="→ "+id; }
+  else    { tl.className="target-none"; tl.textContent="Sélectionner un téléphone →"; }
+  MEDIA_BTNS.forEach(bid=>{ const el=document.getElementById(bid); if(el) el.disabled=!id; });
+}
+
+function sendCmd(action,payload={}) {
+  if (!selectedPhone) { log("Aucun téléphone sélectionné","err"); return; }
+  if (!ws||ws.readyState!==1) { log("Non connecté","err"); return; }
+  ws.send(JSON.stringify({ type:"command", phoneId:selectedPhone, action, payload }));
+  log(`→ "${action}" → ${selectedPhone}`,"ok");
+}
+function send(a) { sendCmd(a); }
+function sendVideo()  { const u=document.getElementById("videoUrl").value.trim(); if(!u){log("URL manquante","err");return;} sendCmd("play_video",{url:u}); }
+function sendImage()  { const u=document.getElementById("imageUrl").value.trim(); if(!u){log("URL manquante","err");return;} sendCmd("show_image",{url:u}); }
+function sendAudio()  { const u=document.getElementById("audioUrl").value.trim(); if(!u){log("URL manquante","err");return;} sendCmd("play_audio",{url:u,title:u.split("/").pop()}); }
+function sendCustomText() { const t=document.getElementById("customText").value.trim(); if(!t){log("Texte manquant","err");return;} sendCmd("show_text",{text:t}); }
+function updateVolume(v) {
+  document.getElementById("volVal").textContent=Math.round(v*100)+"%";
+  if (selectedPhone) sendCmd("volume",{value:parseFloat(v)});
+}
+
+function fillV(u) { document.getElementById("videoUrl").value=u; updatePreview("video",u); }
+function fillI(u) { document.getElementById("imageUrl").value=u; updatePreview("image",u); }
+function fillA(u) { document.getElementById("audioUrl").value=u; updatePreview("audio",u); }
+
+function updatePreview(type, url) {
+  const placeholder = document.getElementById("previewPlaceholder");
+  const img         = document.getElementById("previewImg");
+  const vid         = document.getElementById("previewVid");
+  const audio       = document.getElementById("previewAudio");
+  const audioName   = document.getElementById("previewAudioName");
+  const txt         = document.getElementById("previewText");
+  const badge       = document.getElementById("previewBadge");
+
+  placeholder.style.display = "none";
+  img.style.display          = "none";
+  vid.style.display          = "none";
+  audio.style.display        = "none";
+  txt.style.display          = "none";
+  badge.style.display        = "none";
+
+  const u = url.trim();
+  if (!u) { placeholder.style.display = "flex"; return; }
+
+  if (type === "image") {
+    badge.textContent = "IMAGE"; badge.style.display = "block";
+    img.src = u; img.style.display = "block";
+    img.onerror = () => { img.style.display="none"; placeholder.style.display="flex"; badge.style.display="none"; };
+  } else if (type === "video") {
+    badge.textContent = "VIDÉO"; badge.style.display = "block";
+    vid.src = u; vid.style.display = "block"; vid.load();
+    vid.onerror = () => { vid.style.display="none"; placeholder.style.display="flex"; badge.style.display="none"; };
+  } else if (type === "audio") {
+    badge.textContent = "AUDIO"; badge.style.display = "block";
+    audio.style.display = "flex";
+    audioName.textContent = u.split("/").pop();
+  } else if (type === "text") {
+    if (!u) { placeholder.style.display="flex"; return; }
+    badge.textContent = "TEXTE"; badge.style.display = "block";
+    txt.style.display = "flex"; txt.textContent = u;
+  }
+}
+
+function log(msg,type="info") {
+  const el=document.getElementById("log");
+  const t=new Date().toLocaleTimeString("fr-FR",{hour:"2-digit",minute:"2-digit",second:"2-digit"});
+  const d=document.createElement("div");
+  d.className="log-entry log-"+type;
+  d.innerHTML=`<span class="log-time">${t}</span><span class="log-msg">${msg}</span>`;
+  el.prepend(d);
+  while(el.children.length>40) el.removeChild(el.lastChild);
+}
+
+function makeDraggable(win,handle) {
+  let dragging=false,ox=0,oy=0;
+  function toLeftTop(){const r=win.getBoundingClientRect();win.style.left=r.left+"px";win.style.top=r.top+"px";win.style.right="auto";win.style.bottom="auto";}
+  handle.addEventListener("mousedown",e=>{e.preventDefault();dragging=true;toLeftTop();ox=e.clientX-win.getBoundingClientRect().left;oy=e.clientY-win.getBoundingClientRect().top;handle.style.cursor="grabbing";win.style.zIndex=600;});
+  document.addEventListener("mousemove",e=>{if(!dragging)return;let nx=e.clientX-ox,ny=e.clientY-oy;nx=Math.max(0,Math.min(window.innerWidth-win.offsetWidth,nx));ny=Math.max(0,Math.min(window.innerHeight-win.offsetHeight,ny));win.style.left=nx+"px";win.style.top=ny+"px";});
+  document.addEventListener("mouseup",()=>{dragging=false;handle.style.cursor="grab";});
+  handle.addEventListener("touchstart",e=>{e.preventDefault();dragging=true;toLeftTop();const t=e.touches[0];ox=t.clientX-win.getBoundingClientRect().left;oy=t.clientY-win.getBoundingClientRect().top;},{passive:false});
+  document.addEventListener("touchmove",e=>{if(!dragging)return;const t=e.touches[0];let nx=t.clientX-ox,ny=t.clientY-oy;nx=Math.max(0,Math.min(window.innerWidth-win.offsetWidth,nx));ny=Math.max(0,Math.min(window.innerHeight-win.offsetHeight,ny));win.style.left=nx+"px";win.style.top=ny+"px";},{passive:true});
+  document.addEventListener("touchend",()=>{dragging=false;});
+}
+makeDraggable(document.getElementById("winPhones"),  document.getElementById("dragPhones"));
+makeDraggable(document.getElementById("winTarget"),  document.getElementById("dragTarget"));
+makeDraggable(document.getElementById("winLog"),     document.getElementById("dragLog"));
+makeDraggable(document.getElementById("winMedia"),   document.getElementById("dragMedia"));
+makeDraggable(document.getElementById("winPreview"), document.getElementById("dragPreview"));
+
+connect();
+</script>
+</body>
+</html>
